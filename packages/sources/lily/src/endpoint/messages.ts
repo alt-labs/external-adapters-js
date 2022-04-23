@@ -133,6 +133,7 @@ export const execute: ExecuteWithConfig<ExtendedConfig> = async (request, contex
 
   const cids: string[] = []
   const values: string[] = []
+  const miners: string[] = []
   const ethAddresses: string[] = []
 
   for (let index = 0; index < messages.length; index++) {
@@ -149,6 +150,7 @@ export const execute: ExecuteWithConfig<ExtendedConfig> = async (request, contex
     ethAddresses.push(addr)
     cids.push(msg.cid)
     values.push(msg.value)
+    miners.push(msg.to)
   }
 
   const response = {
@@ -157,6 +159,7 @@ export const execute: ExecuteWithConfig<ExtendedConfig> = async (request, contex
     data: {
       cids,
       values,
+      miners,
       addresses: ethAddresses,
       startHeight: startHeight,
       endHeight: currentHeight - 1,
