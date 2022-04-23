@@ -1,10 +1,12 @@
 import * as JSONRPC from '@chainlink/json-rpc-adapter'
 import { AdapterError, Requester, Validator } from '@chainlink/ea-bootstrap'
 import { Config, ExecuteWithConfig, InputParameters } from '@chainlink/types'
+import { ethers } from 'ethers'
 
 type Address = string
 
 export const methodName = 'Filecoin.WalletBalance'
+export const minerPower = 'Filecoin.StateMinerPower'
 
 export const supportedEndpoints = ['balance', methodName]
 
@@ -38,8 +40,21 @@ export const execute: ExecuteWithConfig<Config> = async (request, context, confi
     })
   }
 
-  const _getBalance = async (address: string, requestId: number) => {
-    const requestData = {
+  // const _getBalance = async (address: string, requestId: number) => {
+  //   const requestData = {
+  //     id: jobRunID,
+  //     data: {
+  //       method: methodName,
+  //       params: [address],
+  //       requestId: requestId + 1,
+  //     },
+  //   }
+  //   const result = await _execute(requestData, context, jsonRpcConfig)
+  //   return [address, result.data.result]
+  // }
+
+  const _getBalanceAndStoragePower = async (address: string, requestId: number) => {
+    const requestBalance = {
       id: jobRunID,
       data: {
         method: methodName,
@@ -47,33 +62,46 @@ export const execute: ExecuteWithConfig<Config> = async (request, context, confi
         requestId: requestId + 1,
       },
     }
-    const result = await _execute(requestData, context, jsonRpcConfig)
-    return [address, result.data.result]
+
+    const requestPower = {
+      id: jobRunID,
+      data: {
+        method: minerPower,
+        params: [address, []],
+        requestId: requestId + 1,
+      },
+    }
+
+    const [balance, power] = await Promise.all([
+      _execute(requestBalance, context, jsonRpcConfig),
+      _execute(requestPower, context, jsonRpcConfig),
+    ])
+
+    return [address, power.data.result['TotalPower']['QualityAdjPower'], balance.data.result]
   }
 
-  const balances = await Promise.all(addresses.map((addr, index) => _getBalance(addr, index)))
+  const balances = await Promise.all(
+    addresses.map((addr, index) => _getBalanceAndStoragePower(addr, index)),
+  )
 
-  const [a, b] = balances.reduce(
+  const [a, p, b] = balances.reduce(
     (prev, curr) => {
       prev[0].push(curr[0])
       prev[1].push(curr[1])
+      prev[2] = prev[2].add(curr[2])
 
       return prev
     },
-    [[], []],
+    [[], [], ethers.BigNumber.from(0)],
   )
 
   const response = {
     statusText: 'OK',
     status: 200,
-    data: { balances: b, addresses: a },
+    data: { totalBalance: b.toString(), addresses: a, minerPowers: p },
     headers: {},
     config: jsonRpcConfig.api,
   }
 
-  return Requester.success(
-    jobRunID,
-    response,
-    true,
-  )
+  return Requester.success(jobRunID, response, true)
 }
