@@ -72,7 +72,8 @@ export const execute: ExecuteWithConfig<ExtendedConfig> = async (request, contex
         const { State: ownerState } = await _getActorState(owner, index)
 
         return { addr, ownerState }
-      } catch {
+      } catch (e) {
+        console.error('error', e)
         return { addr: null, ownerState: {} }
       }
     }),
@@ -81,6 +82,7 @@ export const execute: ExecuteWithConfig<ExtendedConfig> = async (request, contex
   const miners = ownerStates
     .filter(({ ownerState }) => {
       return (
+        !!ownerState &&
         // eslint-disable-next-line no-prototype-builtins
         ownerState.hasOwnProperty('Signers') &&
         // eslint-disable-next-line no-prototype-builtins
