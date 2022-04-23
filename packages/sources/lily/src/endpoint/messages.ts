@@ -71,7 +71,7 @@ export const execute: ExecuteWithConfig<ExtendedConfig> = async (request, contex
           pm.value,
           pm.METHOD,
           pm.params
-      FROM lily.parsed_messages pm
+      FROM parsed_messages pm
       WHERE pm.to='${address}'
       AND pm.method='Send'
       AND pm.height BETWEEN ${startingBlockHeight} AND ${endingBlockHeight}
