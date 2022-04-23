@@ -1,11 +1,8 @@
 import * as JSONRPC from '@chainlink/json-rpc-adapter'
 import { AdapterError, Requester, Validator } from '@chainlink/ea-bootstrap'
 import { Config, ExecuteWithConfig, InputParameters } from '@chainlink/types'
-import { BigNumber } from 'ethers'
 
-interface Address {
-  address: string
-}
+type Address = string
 
 export const methodName = 'Filecoin.WalletBalance'
 
@@ -51,28 +48,32 @@ export const execute: ExecuteWithConfig<Config> = async (request, context, confi
       },
     }
     const result = await _execute(requestData, context, jsonRpcConfig)
-    return {
-      address,
-      result: result.data.result,
-    }
+    return [address, result.data.result]
   }
 
-  const balances = await Promise.all(
-    addresses.map((addr, index) => _getBalance(addr.address, index)),
+  const balances = await Promise.all(addresses.map((addr, index) => _getBalance(addr, index)))
+
+  const [a, b] = balances.reduce(
+    (prev, curr) => {
+      prev[0].push(curr[0])
+      prev[1].push(curr[1])
+
+      return prev
+    },
+    [[], []],
   )
+
   const response = {
     statusText: 'OK',
     status: 200,
-    data: { balances },
+    data: { balances: b, addresses: a },
     headers: {},
     config: jsonRpcConfig.api,
   }
 
-  const result = balances.reduce((sum, balance) => sum.add(balance.result), BigNumber.from(0))
-
   return Requester.success(
     jobRunID,
-    Requester.withResult(response, result.toString()),
-    config.verbose,
+    response,
+    true,
   )
 }
